@@ -43,7 +43,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# COLOQUE AQUI O LINK DA SUA PLANILHA "Torres - Estoque" DO GOOGLE DRIVE
+# https://docs.google.com/spreadsheets/d/10h0iFxX_FEvQljPyLHD6IdeOaSYsnvHfkYzK7PcHe1U/edit?usp=drivesdk "Torres - Estoque" DO GOOGLE DRIVE
 URL_PLANILHA = "COLE_AQUI_O_LINK_DA_SUA_PLANILHA_TORRES"
 
 # --- CONEXÃO COM GOOGLE SHEETS ---
