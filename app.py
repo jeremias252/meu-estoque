@@ -8,7 +8,7 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Controle de Estoque - Caixa Tomada", page_icon="📦", layout="centered")
 
-# --- DESIGN PREMIUM ---
+# --- DESIGN PREMIUM E MODO ESCURO ---
 st.markdown("""
     <style>
     /* Oculta apenas o menu e rodapé, mas MANTÉM a setinha */
@@ -20,20 +20,20 @@ st.markdown("""
         border-radius: 8px;
         font-weight: 600;
         transition: all 0.3s ease;
+        border: none;
     }
     .stButton>button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(243, 128, 32, 0.3); /* Sombra laranja da sua logo */
     }
     
     /* Título principal centralizado */
     .main-title {
         text-align: center;
         font-weight: 800;
-        color: #1E293B;
         padding-bottom: 1rem;
         margin-bottom: 2rem;
-        border-bottom: 2px solid #E2E8F0;
+        border-bottom: 2px solid #333333; /* Linha divisória adaptada para o tema escuro */
     }
     </style>
     """, unsafe_allow_html=True)
@@ -99,7 +99,6 @@ def exibir_estoque_premium(df_base, termo_busca=""):
     df_view['Linha'] = df_view['Modelo'].apply(extrair_linha)
     df_view['Cor'] = df_view['Modelo'].apply(extrair_cor)
     
-    # ORDENAÇÃO: Maior quantidade primeiro.
     df_view = df_view.sort_values(by=['Quantidade', 'Linha', 'Cor'], ascending=[False, True, True])
     
     df_view['Status'] = df_view['Quantidade'].apply(
@@ -127,27 +126,22 @@ def exibir_estoque_premium(df_base, termo_busca=""):
         }
     )
 
-# Inicializa os dados
 df_estoque, df_historico = carregar_dados()
 separadores = ["Fran", "Henrique", "Leonardo", "Patrick"]
 
 # ==========================================
-# LOGO VETORIZADA DIRETO NO CÓDIGO (Não precisa de imagem)
+# LOGO VETORIZADA DIRETO NO CÓDIGO (Fundo transparente)
 # ==========================================
 logo_svg = """
 <div style="display: flex; justify-content: center; margin-bottom: 30px;">
     <svg width="100%" viewBox="0 0 400 350" xmlns="http://www.w3.org/2000/svg">
-        <rect width="400" height="350" fill="#35363A" rx="12"/>
-        <!-- Moldura branca -->
+        <!-- O fundo agora é transparente para assumir a cor preta do app -->
+        <rect width="400" height="350" fill="transparent" rx="12"/>
         <path d="M 320 180 L 320 50 L 50 50 L 50 300 L 320 300 L 320 250" fill="none" stroke="#ffffff" stroke-width="12" />
-        <!-- Textos -->
         <text x="75" y="150" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="70" letter-spacing="2">CAIXA</text>
         <text x="75" y="235" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="60" letter-spacing="1">TOMADA</text>
-        <!-- .COM -->
         <text x="325" y="225" fill="#ffffff" font-family="Arial, sans-serif" font-weight="bold" font-size="28">.COM</text>
-        <!-- Simbolo Registrado -->
         <text x="385" y="200" fill="#ffffff" font-family="Arial, sans-serif" font-size="14">®</text>
-        <!-- Linha Laranja -->
         <line x1="290" y1="260" x2="380" y2="260" stroke="#F38020" stroke-width="12" />
     </svg>
 </div>
@@ -172,18 +166,12 @@ if perfil == "⚙️ Controle (Apenas Fran)":
 st.markdown("<h1 class='main-title'>📦 Gestão de Estoque</h1>", unsafe_allow_html=True)
 
 if not mostrar_admin:
-    # ---------------------------------------------------------
-    # MODO VISUALIZADOR
-    # ---------------------------------------------------------
     st.info("👋 **Bem-vindo(a) à central de estoque Caixa Tomada.** Você está no modo visualização. Solicite as retiradas de material diretamente à Fran.")
     
     busca = st.text_input("🔍 Buscar modelo ou cor (Ex: TR03 Branco)...", key="busca_equipe")
     exibir_estoque_premium(df_estoque, busca)
 
 else:
-    # ---------------------------------------------------------
-    # MODO ADMINISTRADOR (Fran)
-    # ---------------------------------------------------------
     st.sidebar.success("✅ Acesso Liberado: Fran")
     
     aba_operacao, aba_painel, aba_historico = st.tabs(["📦 Operação", "📊 Dashboard", "🕒 Histórico e Dados"])
