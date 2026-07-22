@@ -8,12 +8,34 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Controle de Estoque", page_icon="📦", layout="centered")
 
-# --- OCULTAR MENU EM INGLÊS DO STREAMLIT ---
+# --- DESIGN PREMIUM E OCULTAR MENU ---
 st.markdown("""
     <style>
+    /* Ocultar elementos padrão do Streamlit */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    
+    /* Estilo Premium para botões e caixas */
+    .stButton>button {
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    /* Título principal centralizado e elegante */
+    .main-title {
+        text-align: center;
+        font-weight: 800;
+        color: #1E293B;
+        padding-bottom: 1rem;
+        margin-bottom: 2rem;
+        border-bottom: 2px solid #E2E8F0;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -60,7 +82,6 @@ def salvar_historico(df):
 def exibir_estoque_premium(df_base, termo_busca=""):
     df_view = df_base.copy()
     
-    # Filtra se houver busca
     if termo_busca:
         df_view = df_view[df_view["Modelo"].str.contains(termo_busca, case=False)]
         
@@ -68,35 +89,27 @@ def exibir_estoque_premium(df_base, termo_busca=""):
         st.warning("Nenhum modelo encontrado com este nome ou cor.")
         return
 
-    # Separa o Nome da Cor para ficar organizado
     def extrair_linha(nome):
-        if " - " in nome:
-            return nome.rsplit(" - ", 1)[0]
+        if " - " in nome: return nome.rsplit(" - ", 1)[0]
         return nome
         
     def extrair_cor(nome):
-        if " - " in nome:
-            return nome.rsplit(" - ", 1)[1]
+        if " - " in nome: return nome.rsplit(" - ", 1)[1]
         return "-"
 
     df_view['Linha'] = df_view['Modelo'].apply(extrair_linha)
     df_view['Cor'] = df_view['Modelo'].apply(extrair_cor)
     
-    # Ordena alfabeticamente para agrupar as famílias de produtos
-    df_view = df_view.sort_values(by=['Linha', 'Cor'])
+    # ORDENAÇÃO: Maior quantidade primeiro. Se empatar, ordem alfabética.
+    df_view = df_view.sort_values(by=['Quantidade', 'Linha', 'Cor'], ascending=[False, True, True])
     
-    # Adiciona a coluna de Status
     df_view['Status'] = df_view['Quantidade'].apply(
         lambda x: "🔴 Zerado" if x == 0 else ("🟡 Baixo" if x <= 5 else "🟢 OK")
     )
     
-    # Define um limite para a barra de progresso (para ficar visualmente bonito)
     max_qtd = max(int(df_base['Quantidade'].max()), 50)
-    
-    # Seleciona as colunas finais
     df_final = df_view[['Linha', 'Cor', 'Quantidade', 'Status']]
     
-    # Renderiza a tabela com o visual novo (column_config)
     st.dataframe(
         df_final,
         use_container_width=True,
@@ -119,46 +132,53 @@ def exibir_estoque_premium(df_base, termo_busca=""):
 df_estoque, df_historico = carregar_dados()
 separadores = ["Fran", "Henrique", "Leonardo", "Patrick"]
 
+
 # ==========================================
-# MENU LATERAL: CONTROLE DE ACESSO
+# LOGO E MENU LATERAL
 # ==========================================
-st.sidebar.title("🔐 Acesso")
-perfil = st.sidebar.radio("Selecione o modo:", ["Apenas Ver (Equipe)", "Controle (Apenas Fran)"])
+# Tenta carregar o logo se o arquivo existir no GitHub
+if os.path.exists("logo.png"):
+    st.sidebar.image("logo.png", use_container_width=True)
+elif os.path.exists("logo.jpg"):
+    st.sidebar.image("logo.jpg", use_container_width=True)
+else:
+    st.sidebar.markdown("<h2 style='text-align: center; color: #64748B;'>🏢 Sua Empresa</h2>", unsafe_allow_html=True)
+
+st.sidebar.title("🔐 Acesso Seguro")
+perfil = st.sidebar.radio("Nível de permissão:", ["👀 Visualizador (Equipe)", "⚙️ Controle (Apenas Fran)"])
 
 mostrar_admin = False
 
-if perfil == "Controle (Apenas Fran)":
-    senha = st.sidebar.text_input("Digite a senha da Fran:", type="password")
+if perfil == "⚙️ Controle (Apenas Fran)":
+    senha = st.sidebar.text_input("Senha de acesso:", type="password")
     if senha == "fran123":
         mostrar_admin = True
     elif senha != "":
         st.sidebar.error("❌ Senha incorreta!")
 
+
 # ==========================================
 # TELA PRINCIPAL
 # ==========================================
-st.title("📦 Meu Estoque")
+st.markdown("<h1 class='main-title'>📦 Gestão de Estoque</h1>", unsafe_allow_html=True)
 
 if not mostrar_admin:
     # ---------------------------------------------------------
     # MODO VISUALIZADOR (Equipe)
     # ---------------------------------------------------------
-    st.info("👀 **Modo Visualização:** Consulte os saldos abaixo. **Para retirar material, solicite à Fran.**")
+    st.info("👋 **Bem-vindo!** Você está no modo visualização. Solicite as retiradas de material diretamente à Fran.")
     
-    busca = st.text_input("🔍 Pesquisar modelo ou cor...", placeholder="Ex: TR03 Preto...", key="busca_equipe")
-    
-    # Chama a função visual Premium
+    busca = st.text_input("🔍 Buscar modelo ou cor (Ex: TR03 Branco)...", key="busca_equipe")
     exibir_estoque_premium(df_estoque, busca)
 
 else:
     # ---------------------------------------------------------
     # MODO ADMINISTRADOR (Fran)
     # ---------------------------------------------------------
-    st.sidebar.success("✅ Acesso Liberado para Fran")
+    st.sidebar.success("✅ Acesso Liberado: Fran")
     
-    aba_operacao, aba_painel, aba_historico = st.tabs(["📦 Operação", "📊 Painel de Controle", "🕒 Histórico e Dados"])
+    aba_operacao, aba_painel, aba_historico = st.tabs(["📦 Operação", "📊 Dashboard", "🕒 Histórico e Dados"])
 
-    # --- ABA 1: OPERAÇÃO ---
     with aba_operacao:
         st.header("📤 Registrar Saída")
         with st.form("form_saida", clear_on_submit=True):
@@ -166,21 +186,23 @@ else:
             with col1:
                 sep = st.selectbox("1. Para quem é a peça?", [""] + separadores)
             with col2:
-                modelo = st.selectbox("2. Qual modelo?", [""] + df_estoque["Modelo"].tolist())
+                # Ordena o menu de seleção alfabeticamente para facilitar achar
+                lista_modelos = sorted(df_estoque["Modelo"].tolist())
+                modelo = st.selectbox("2. Qual modelo?", [""] + lista_modelos)
             with col3:
                 qtd = st.number_input("3. Qtd", min_value=1, value=1, step=1)
                 
-            submit_saida = st.form_submit_button("Confirmar Retirada", type="primary", use_container_width=True)
+            submit_saida = st.form_submit_button("Confirmar Saída", type="primary", use_container_width=True)
 
         if submit_saida:
             if not sep or not modelo:
-                st.error("⚠️ Preencha para quem é a peça e o modelo.")
+                st.error("⚠️ Selecione o colaborador e o modelo.")
             else:
                 idx = df_estoque[df_estoque["Modelo"] == modelo].index[0]
                 estoque_atual = df_estoque.at[idx, "Quantidade"]
                 
                 if estoque_atual < qtd:
-                    st.error(f"⚠️ Estoque insuficiente! Só temos {estoque_atual} de {modelo}.")
+                    st.error(f"⚠️ Saldo insuficiente! Temos apenas {estoque_atual} un. de {modelo}.")
                 else:
                     df_estoque.at[idx, "Quantidade"] -= qtd
                     salvar_estoque(df_estoque)
@@ -196,14 +218,12 @@ else:
                     salvar_historico(df_historico)
                     
                     st.success(f"✅ SUCESSO: {qtd}x {modelo} entregues para {sep}!")
-                    st.toast(f"Retirada de {sep} salva!", icon="✅")
+                    st.toast("Saída registrada!", icon="✅")
 
         st.divider()
 
         st.header("📋 Estoque Atual")
-        busca = st.text_input("🔍 Pesquisar modelo ou cor...", placeholder="Ex: TR03 Preto...", key="busca_admin")
-
-        # Chama a função visual Premium
+        busca = st.text_input("🔍 Buscar modelo ou cor...", key="busca_admin")
         exibir_estoque_premium(df_estoque, busca)
 
         st.divider()
@@ -212,81 +232,79 @@ else:
         with col_entrada:
             st.subheader("📥 Receber Material")
             with st.form("form_entrada", clear_on_submit=True):
-                modelo_rep = st.selectbox("Qual modelo chegou?", [""] + df_estoque["Modelo"].tolist())
+                modelo_rep = st.selectbox("Qual modelo chegou?", [""] + sorted(df_estoque["Modelo"].tolist()))
                 qtd_rep = st.number_input("Quantidade recebida", min_value=1, value=1, step=1)
-                submit_entrada = st.form_submit_button("Lançar no Estoque")
+                submit_entrada = st.form_submit_button("Lançar Entrada")
                 
                 if submit_entrada:
                     if modelo_rep:
                         idx = df_estoque[df_estoque["Modelo"] == modelo_rep].index[0]
                         df_estoque.at[idx, "Quantidade"] += qtd_rep
                         salvar_estoque(df_estoque)
-                        st.success(f"✅ {qtd_rep}x {modelo_rep} adicionados!")
+                        st.success(f"✅ {qtd_rep}x {modelo_rep} em estoque!")
                         time.sleep(1)
                         st.rerun()
 
         with col_novo:
-            st.subheader("➕ Novo Modelo")
+            st.subheader("➕ Cadastrar Produto")
             with st.form("form_novo", clear_on_submit=True):
-                novo_nome = st.text_input("Nome do modelo (com a cor)")
+                novo_nome = st.text_input("Nome do produto (com cor)")
                 nova_qtd = st.number_input("Estoque inicial", min_value=0, value=0, step=1)
-                submit_novo = st.form_submit_button("Cadastrar Modelo")
+                submit_novo = st.form_submit_button("Salvar Cadastro")
                 
                 if submit_novo:
                     if novo_nome:
                         if novo_nome in df_estoque["Modelo"].values:
-                            st.warning("Este modelo já existe!")
+                            st.warning("Produto já cadastrado!")
                         else:
                             novo_item = pd.DataFrame([{"Modelo": novo_nome, "Quantidade": nova_qtd}])
                             df_estoque = pd.concat([df_estoque, novo_item], ignore_index=True)
                             salvar_estoque(df_estoque)
-                            st.success("✅ Modelo cadastrado!")
+                            st.success("✅ Produto adicionado!")
                             time.sleep(1)
                             st.rerun()
 
-    # --- ABA 2: PAINEL DE CONTROLE ---
     with aba_painel:
-        st.header("📊 Resumo do Sistema")
+        st.header("📊 Indicadores de Estoque")
         
         col_metric1, col_metric2 = st.columns(2)
         total_pecas = int(df_estoque["Quantidade"].sum())
         itens_em_baixa = int((df_estoque["Quantidade"] <= 5).sum())
         
-        col_metric1.metric("📦 Total de Peças Físicas", total_pecas)
-        col_metric2.metric("⚠️ Modelos no Final (5 ou menos)", itens_em_baixa)
+        col_metric1.metric("📦 Total de Peças", total_pecas)
+        col_metric2.metric("⚠️ Alertas de Falta (≤ 5 un)", itens_em_baixa)
         
         st.divider()
         
         if not df_historico.empty:
-            st.subheader("📈 Top 5 Modelos Mais Retirados")
+            st.subheader("📈 Top 5 Mais Retirados")
             top_modelos = df_historico.groupby("Modelo")["Quantidade"].sum().sort_values(ascending=False).head(5)
             st.bar_chart(top_modelos)
             
-            st.subheader("👤 Quem mais retirou peças?")
+            st.subheader("👤 Retiradas por Colaborador")
             top_separadores = df_historico.groupby("Separador")["Quantidade"].sum().sort_values(ascending=False)
             st.bar_chart(top_separadores)
         else:
-            st.info("Nenhuma retirada registrada ainda para gerar gráficos.")
+            st.info("Aguardando movimentações para gerar gráficos.")
 
-    # --- ABA 3: HISTÓRICO E DADOS ---
     with aba_historico:
-        st.header("🕒 Histórico de Retiradas")
+        st.header("🕒 Histórico Recente")
         st.dataframe(df_historico.drop(columns=["ID"], errors="ignore"), use_container_width=True, hide_index=True)
         
         st.divider()
         
-        st.subheader("↩️ Cancelar um Lançamento Errado")
-        st.caption("Se você lançou algo errado, selecione abaixo para desfazer. A peça voltará para o estoque automaticamente.")
+        st.subheader("↩️ Estornar Lançamento")
+        st.caption("Caso tenha havido erro de digitação, cancele aqui e a peça voltará ao saldo.")
         
         ultimos_registros = df_historico.head(20)
         opcoes_desfazer = {}
         for _, row in ultimos_registros.iterrows():
-            texto = f"{row['Data']} | {row['Separador']} retirou {row['Quantidade']}x {row['Modelo']}"
+            texto = f"{row['Data']} | {row['Separador']} | {row['Quantidade']}x {row['Modelo']}"
             opcoes_desfazer[texto] = row["ID"]
             
-        selecao_desfazer = st.selectbox("Selecione o registro para cancelar:", [""] + list(opcoes_desfazer.keys()))
+        selecao_desfazer = st.selectbox("Registro para cancelar:", [""] + list(opcoes_desfazer.keys()))
         
-        if st.button("❌ Desfazer e Devolver ao Estoque"):
+        if st.button("❌ Estornar Movimentação"):
             if selecao_desfazer:
                 id_alvo = opcoes_desfazer[selecao_desfazer]
                 registro_cancelado = df_historico[df_historico["ID"] == id_alvo].iloc[0]
@@ -298,19 +316,19 @@ else:
                 df_historico = df_historico[df_historico["ID"] != id_alvo]
                 salvar_historico(df_historico)
                 
-                st.success("Lançamento cancelado! As peças voltaram para o estoque.")
+                st.success("✅ Estorno realizado! Saldo atualizado.")
                 time.sleep(1.5)
                 st.rerun()
                 
         st.divider()
 
-        st.subheader("📥 Baixar Relatórios")
+        st.subheader("📥 Exportação de Dados")
         col_down1, col_down2 = st.columns(2)
         
         with col_down1:
             csv_estoque = df_estoque.to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📄 Baixar Estoque Atual",
+                label="📄 Planilha de Estoque",
                 data=csv_estoque,
                 file_name=f"estoque_{datetime.now().strftime('%d-%m-%Y')}.csv",
                 mime="text/csv",
@@ -320,7 +338,7 @@ else:
         with col_down2:
             csv_historico = df_historico.drop(columns=["ID"], errors="ignore").to_csv(index=False).encode('utf-8')
             st.download_button(
-                label="📄 Baixar Histórico",
+                label="📄 Relatório de Movimentação",
                 data=csv_historico,
                 file_name=f"historico_{datetime.now().strftime('%d-%m-%Y')}.csv",
                 mime="text/csv",
