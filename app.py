@@ -11,11 +11,9 @@ st.set_page_config(page_title="Torres - ESTOQUE", page_icon="📦", layout="cent
 # --- DESIGN PREMIUM E MODO ESCURO ---
 st.markdown("""
     <style>
-    /* Oculta apenas o menu e rodapé, mas MANTÉM a setinha */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
-    /* Estilo Premium para botões e caixas */
     .stButton>button {
         border-radius: 8px;
         font-weight: 600;
@@ -27,13 +25,18 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(243, 128, 32, 0.3);
     }
     
-    /* Título principal centralizado */
     .main-title {
         text-align: center;
         font-weight: 800;
         padding-bottom: 1rem;
         margin-bottom: 2rem;
         border-bottom: 2px solid #333333;
+    }
+    
+    /* Remove a borda padrão do expander para ficar mais "limpo" */
+    .streamlit-expanderHeader {
+        font-weight: bold !important;
+        font-size: 16px !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -76,7 +79,7 @@ def salvar_historico(df):
     df.to_csv(ARQUIVO_HISTORICO, index=False)
 
 # ==========================================
-# FUNÇÃO PREMIUM PARA EXIBIR ESTOQUE
+# NOVA FUNÇÃO DE ESTOQUE (SANFONAS E CARDS)
 # ==========================================
 def exibir_estoque_premium(df_base, termo_busca=""):
     df_view = df_base.copy()
@@ -88,6 +91,7 @@ def exibir_estoque_premium(df_base, termo_busca=""):
         st.warning("Nenhum modelo encontrado com este nome ou cor.")
         return
 
+    # Separa Nome da Cor
     def extrair_linha(nome):
         if " - " in nome: return nome.rsplit(" - ", 1)[0]
         return nome
@@ -99,32 +103,39 @@ def exibir_estoque_premium(df_base, termo_busca=""):
     df_view['Linha'] = df_view['Modelo'].apply(extrair_linha)
     df_view['Cor'] = df_view['Modelo'].apply(extrair_cor)
     
-    df_view = df_view.sort_values(by=['Quantidade', 'Linha', 'Cor'], ascending=[False, True, True])
+    # Agrupa pelas famílias de modelos para ver quem tem mais quantidade
+    df_totais = df_view.groupby('Linha')['Quantidade'].sum().reset_index()
+    df_totais = df_totais.sort_values(by='Quantidade', ascending=False)
     
-    df_view['Status'] = df_view['Quantidade'].apply(
-        lambda x: "🔴 Zerado" if x == 0 else ("🟡 Baixo" if x <= 5 else "🟢 OK")
-    )
-    
-    max_qtd = max(int(df_base['Quantidade'].max()), 50)
-    df_final = df_view[['Linha', 'Cor', 'Quantidade', 'Status']]
-    
-    st.dataframe(
-        df_final,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Linha": st.column_config.TextColumn("Modelo", width="medium"),
-            "Cor": st.column_config.TextColumn("Cor", width="small"),
-            "Quantidade": st.column_config.ProgressColumn(
-                "Estoque",
-                help="Quantidade atual disponível",
-                format="%d un",
-                min_value=0,
-                max_value=max_qtd
-            ),
-            "Status": st.column_config.TextColumn("Status", width="small")
-        }
-    )
+    # Renderiza cada família como uma Sanfona (Expander)
+    for _, row_total in df_totais.iterrows():
+        linha = row_total['Linha']
+        total_linha = int(row_total['Quantidade'])
+        
+        # Ícone de status da família geral
+        icone = "🔴" if total_linha == 0 else ("🟡" if total_linha <= 5 else "📦")
+        
+        with st.expander(f"{icone} {linha} — (Total: {total_linha} un.)"):
+            # Filtra apenas os itens desta família
+            df_linha = df_view[df_view['Linha'] == linha].sort_values(by='Cor')
+            
+            # Cria colunas lado a lado baseadas na quantidade de cores encontradas
+            cols = st.columns(len(df_linha) if len(df_linha) > 0 else 1)
+            
+            for i, (_, row) in enumerate(df_linha.iterrows()):
+                cor = row['Cor']
+                qtd = int(row['Quantidade'])
+                status = "🔴 Zerado" if qtd == 0 else ("🟡 Baixo" if qtd <= 5 else "🟢 OK")
+                
+                # HTML do Card (Design escuro Premium)
+                card_html = f"""
+                <div style="background-color: #1A1A1A; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #333333; margin-bottom: 5px;">
+                    <div style="color: #888888; font-size: 14px; font-weight: bold; text-transform: uppercase;">{cor}</div>
+                    <div style="color: #F38020; font-size: 26px; font-weight: 900; margin: 8px 0;">{qtd}</div>
+                    <div style="font-size: 12px; color: #AAAAAA;">{status}</div>
+                </div>
+                """
+                cols[i].markdown(card_html, unsafe_allow_html=True)
 
 df_estoque, df_historico = carregar_dados()
 separadores = ["Fran", "Henrique", "Leonardo", "Patrick"]
@@ -168,6 +179,7 @@ if not mostrar_admin:
     st.info("👋 **Bem-vindo(a) à central de estoque Torres.** Você está no modo visualização. Solicite as retiradas de material diretamente à Fran.")
     
     busca = st.text_input("🔍 Buscar modelo ou cor (Ex: TR03 Branco)...", key="busca_equipe")
+    st.divider()
     exibir_estoque_premium(df_estoque, busca)
 
 else:
@@ -219,6 +231,7 @@ else:
 
         st.header("📋 Estoque Atual")
         busca = st.text_input("🔍 Buscar modelo ou cor...", key="busca_admin")
+        st.write("") # Espaçamento
         exibir_estoque_premium(df_estoque, busca)
 
         st.divider()
