@@ -8,13 +8,12 @@ from datetime import datetime
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Controle de Estoque", page_icon="📦", layout="centered")
 
-# --- DESIGN PREMIUM E OCULTAR MENU ---
+# --- DESIGN PREMIUM (Corrigido para não esconder a setinha) ---
 st.markdown("""
     <style>
-    /* Ocultar elementos padrão do Streamlit */
+    /* Oculta apenas o menu e rodapé, mas MANTÉM o header onde fica a setinha */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
-    header {visibility: hidden;}
     
     /* Estilo Premium para botões e caixas */
     .stButton>button {
@@ -100,7 +99,7 @@ def exibir_estoque_premium(df_base, termo_busca=""):
     df_view['Linha'] = df_view['Modelo'].apply(extrair_linha)
     df_view['Cor'] = df_view['Modelo'].apply(extrair_cor)
     
-    # ORDENAÇÃO: Maior quantidade primeiro. Se empatar, ordem alfabética.
+    # ORDENAÇÃO: Maior quantidade primeiro.
     df_view = df_view.sort_values(by=['Quantidade', 'Linha', 'Cor'], ascending=[False, True, True])
     
     df_view['Status'] = df_view['Quantidade'].apply(
@@ -134,14 +133,17 @@ separadores = ["Fran", "Henrique", "Leonardo", "Patrick"]
 
 
 # ==========================================
-# LOGO E MENU LATERAL
+# LOGO E MENU LATERAL (Com proteção contra erros)
 # ==========================================
-# Tenta carregar o logo se o arquivo existir no GitHub
-if os.path.exists("logo.png"):
-    st.sidebar.image("logo.png", use_container_width=True)
-elif os.path.exists("logo.jpg"):
-    st.sidebar.image("logo.jpg", use_container_width=True)
-else:
+# O bloco try/except impede que o app trave se a imagem falhar
+try:
+    if os.path.exists("logo.png"):
+        st.sidebar.image("logo.png", use_container_width=True)
+    elif os.path.exists("logo.jpg"):
+        st.sidebar.image("logo.jpg", use_container_width=True)
+    else:
+        st.sidebar.markdown("<h2 style='text-align: center; color: #64748B;'>🏢 Sua Empresa</h2>", unsafe_allow_html=True)
+except Exception:
     st.sidebar.markdown("<h2 style='text-align: center; color: #64748B;'>🏢 Sua Empresa</h2>", unsafe_allow_html=True)
 
 st.sidebar.title("🔐 Acesso Seguro")
@@ -186,7 +188,6 @@ else:
             with col1:
                 sep = st.selectbox("1. Para quem é a peça?", [""] + separadores)
             with col2:
-                # Ordena o menu de seleção alfabeticamente para facilitar achar
                 lista_modelos = sorted(df_estoque["Modelo"].tolist())
                 modelo = st.selectbox("2. Qual modelo?", [""] + lista_modelos)
             with col3:
