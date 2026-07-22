@@ -6,12 +6,12 @@ import uuid
 from datetime import datetime
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Controle de Estoque", page_icon="📦", layout="centered")
+st.set_page_config(page_title="Controle de Estoque - Caixa Tomada", page_icon="📦", layout="centered")
 
-# --- DESIGN PREMIUM (Corrigido para não esconder a setinha) ---
+# --- DESIGN PREMIUM ---
 st.markdown("""
     <style>
-    /* Oculta apenas o menu e rodapé, mas MANTÉM o header onde fica a setinha */
+    /* Oculta apenas o menu e rodapé, mas MANTÉM a setinha */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
@@ -26,7 +26,7 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
     
-    /* Título principal centralizado e elegante */
+    /* Título principal centralizado */
     .main-title {
         text-align: center;
         font-weight: 800;
@@ -117,7 +117,7 @@ def exibir_estoque_premium(df_base, termo_busca=""):
             "Linha": st.column_config.TextColumn("Modelo", width="medium"),
             "Cor": st.column_config.TextColumn("Cor", width="small"),
             "Quantidade": st.column_config.ProgressColumn(
-                "Estoque Físico",
+                "Estoque",
                 help="Quantidade atual disponível",
                 format="%d un",
                 min_value=0,
@@ -131,20 +131,28 @@ def exibir_estoque_premium(df_base, termo_busca=""):
 df_estoque, df_historico = carregar_dados()
 separadores = ["Fran", "Henrique", "Leonardo", "Patrick"]
 
-
 # ==========================================
-# LOGO E MENU LATERAL (Com proteção contra erros)
+# LOGO VETORIZADA DIRETO NO CÓDIGO (Não precisa de imagem)
 # ==========================================
-# O bloco try/except impede que o app trave se a imagem falhar
-try:
-    if os.path.exists("logo.png"):
-        st.sidebar.image("logo.png", use_container_width=True)
-    elif os.path.exists("logo.jpg"):
-        st.sidebar.image("logo.jpg", use_container_width=True)
-    else:
-        st.sidebar.markdown("<h2 style='text-align: center; color: #64748B;'>🏢 Sua Empresa</h2>", unsafe_allow_html=True)
-except Exception:
-    st.sidebar.markdown("<h2 style='text-align: center; color: #64748B;'>🏢 Sua Empresa</h2>", unsafe_allow_html=True)
+logo_svg = """
+<div style="display: flex; justify-content: center; margin-bottom: 30px;">
+    <svg width="100%" viewBox="0 0 400 350" xmlns="http://www.w3.org/2000/svg">
+        <rect width="400" height="350" fill="#35363A" rx="12"/>
+        <!-- Moldura branca -->
+        <path d="M 320 180 L 320 50 L 50 50 L 50 300 L 320 300 L 320 250" fill="none" stroke="#ffffff" stroke-width="12" />
+        <!-- Textos -->
+        <text x="75" y="150" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="70" letter-spacing="2">CAIXA</text>
+        <text x="75" y="235" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="60" letter-spacing="1">TOMADA</text>
+        <!-- .COM -->
+        <text x="325" y="225" fill="#ffffff" font-family="Arial, sans-serif" font-weight="bold" font-size="28">.COM</text>
+        <!-- Simbolo Registrado -->
+        <text x="385" y="200" fill="#ffffff" font-family="Arial, sans-serif" font-size="14">®</text>
+        <!-- Linha Laranja -->
+        <line x1="290" y1="260" x2="380" y2="260" stroke="#F38020" stroke-width="12" />
+    </svg>
+</div>
+"""
+st.sidebar.markdown(logo_svg, unsafe_allow_html=True)
 
 st.sidebar.title("🔐 Acesso Seguro")
 perfil = st.sidebar.radio("Nível de permissão:", ["👀 Visualizador (Equipe)", "⚙️ Controle (Apenas Fran)"])
@@ -158,7 +166,6 @@ if perfil == "⚙️ Controle (Apenas Fran)":
     elif senha != "":
         st.sidebar.error("❌ Senha incorreta!")
 
-
 # ==========================================
 # TELA PRINCIPAL
 # ==========================================
@@ -166,9 +173,9 @@ st.markdown("<h1 class='main-title'>📦 Gestão de Estoque</h1>", unsafe_allow_
 
 if not mostrar_admin:
     # ---------------------------------------------------------
-    # MODO VISUALIZADOR (Equipe)
+    # MODO VISUALIZADOR
     # ---------------------------------------------------------
-    st.info("👋 **Bem-vindo!** Você está no modo visualização. Solicite as retiradas de material diretamente à Fran.")
+    st.info("👋 **Bem-vindo(a) à central de estoque Caixa Tomada.** Você está no modo visualização. Solicite as retiradas de material diretamente à Fran.")
     
     busca = st.text_input("🔍 Buscar modelo ou cor (Ex: TR03 Branco)...", key="busca_equipe")
     exibir_estoque_premium(df_estoque, busca)
