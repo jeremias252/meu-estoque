@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Estoque</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 700px; margin: 2rem auto; padding: 0 1rem; background: #f4f4f5; color: #18181b; }
+        h1 { text-align: center; color: #27272a; }
+        .card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 1.5rem; }
+        .section-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem; border-bottom: 2px solid #e4e4e7; padding-bottom: 0.5rem; color: #3f3f46; }
+        
+        input, select, button { padding: 0.5rem; border: 1px solid #e4e4e7; border-radius: 4px; font-size: 1rem; }
+        input[type="text"], select { flex: 1; }
+        .form-group { display: flex; gap: 0.5rem; margin-bottom: 0; flex-wrap: wrap; }
+        
+        button { cursor: pointer; background: #2563eb; color: white; border: none; font-weight: bold; transition: background 0.2s; border-radius: 6px; }
+        button:hover { background: #1d4ed8; }
+        .btn-retirada { background: #ea580c; width: 100%; padding: 0.75rem; margin-top: 0.5rem; }
+        .btn-retirada:hover { background: #c2410c; }
+        
+        .btn-add { background: #16a34a; width: 35px; height: 35px; font-size: 1.2rem; padding: 0; }
+        .btn-remove { background: #dc2626; width: 35px; height: 35px; font-size: 1.2rem; padding: 0; }
+        .btn-delete { background: #ef4444; width: 35px; height: 35px; padding: 0; font-size: 1rem; margin-left: 10px; }
+        
+        .search-bar { width: 100%; box-sizing: border-box; margin-bottom: 1rem; padding: 0.75rem; border: 2px solid #2563eb; border-radius: 6px; }
+        
+        ul { list-style: none; padding: 0; margin: 0; }
+        li { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: white; margin-bottom: 0.5rem; border-radius: 6px; border: 1px solid #e4e4e7; }
+        .item-info { display: flex; flex-direction: column; }
+        .item-name { font-weight: 600; font-size: 1.1rem; }
+        .item-actions { display: flex; gap: 0.5rem; align-items: center; }
+        .quantity { font-weight: bold; font-size: 1.4rem; min-width: 2.5rem; text-align: center; }
+        
+        .low-stock { border-left: 5px solid #ef4444; }
+        
+        .historico-item { display: block; padding: 0.75rem; }
+        .historico-data { font-size: 0.8rem; color: #71717a; display: block; margin-top: 0.25rem; }
+    </style>
+</head>
+<body>
+
+    <h1>📦 Meu Estoque</h1>
+
+    <!-- ÁREA DE REGISTRO DE RETIRADAS -->
+    <div class="card">
+        <div class="section-title">📤 Registrar Saída (Separadores)</div>
+        <div class="form-group">
+            <select id="selectSeparador">
+                <option value="">1. Quem está pegando?</option>
+                <option value="Fran">Fran</option>
+                <option value="Henrique">Henrique</option>
+                <option value="Leonardo">Leonardo</option>
+                <option value="Patrick">Patrick</option>
+            </select>
+            
+            <select id="selectItem">
+                <option value="">2. Qual modelo?</option>
+                <!-- Preenchido automaticamente via JS -->
+            </select>
+            
+            <input type="number" id="qtdRetirada" placeholder="Qtd" value="1" min="1" style="width: 80px;">
+        </div>
+        <button class="btn-retirada" onclick="registrarRetirada()">Confirmar Retirada</button>
+    </div>
+
+    <!-- ÁREA DO ESTOQUE ATUAL E BUSCA -->
+    <div class="card">
+        <div class="section-title">📋 Estoque Atual</div>
+        <input type="text" id="inputBusca" class="search-bar" placeholder="🔍 Pesquisar modelo..." onkeyup="filtrarEstoque()">
+        <ul id="estoqueList"></ul>
+    </div>
+
+    <!-- ÁREA PARA CADASTRAR MODELOS NOVOS -->
+    <div class="card">
+        <div class="section-title">➕ Cadastrar Novo Modelo</div>
+        <div class="form-group">
+            <input type="text" id="itemName" placeholder="Nome do item...">
+            <input type="number" id="itemQty" placeholder="Qtd Inicial" value="0" style="width: 100px;">
+            <button onclick="cadastrarItem()">Cadastrar</button>
+        </div>
+    </div>
+
+    <!-- HISTÓRICO DE QUEM PEGOU -->
+    <div class="card">
+        <div class="section-title">🕒 Histórico de Retiradas (Últimas 50)</div>
+        <ul id="historicoList"></ul>
+    </div>
+
+    <script>
+        // A sua lista inicial de itens
+        const itensIniciais = [
+            { id: 1, nome: "TR03", qtd: 0 },
+            { id: 2, nome: "TR03W", qtd: 0 },
+            { id: 3, nome: "TR03A", qtd: 0 },
+            { id: 4, nome: "TR03AW", qtd: 0 },
+            { id: 5, nome: "TR02A", qtd: 0 },
+            { id: 6, nome: "TR02AW", qtd: 0 },
+            { id: 7, nome: "TR03AW COM DUO", qtd: 0 },
+            { id: 8, nome: "TR03A COM DUO", qtd: 0 },
+            { id: 9, nome: "TR03A TOPO EM PEDRA 2,5 mm", qtd: 0 },
+            { id: 10, nome: "TR03A TOPO EM PEDRA 4 mm", qtd: 0 },
+            { id: 11, nome: "TR03A TOPO EM PEDRA 2,5 mm TOM DEDICADA", qtd: 0 },
+            { id: 12, nome: "TR03 2TM + 1VER", qtd: 0 },
+            { id: 13, nome: "TR03 4mm", qtd: 0 },
+            { id: 14, nome: "TR03A 2 TOM +VM", qtd: 0 },
+            { id: 15, nome: "TR02AW 1TOM + VM", qtd: 0 },
+            { id: 16, nome: "TR03AW 2 TOM + VM", qtd: 0 },
+            { id: 17, nome: "TR02A 4mm²", qtd: 0 },
+            { id: 18, nome: "TR02AW 4mm", qtd: 0 }
+        ];
+
+        // Carrega dados salvos ou a lista inicial
+        let estoque = JSON.parse(localStorage.getItem('meuEstoque'));
+        if (!estoque || estoque.length === 0) {
+            estoque = itensIniciais;
+            localStorage.setItem('meuEstoque', JSON.stringify(estoque));
+        }
+
+        // Carrega o histórico
+        let historico = JSON.parse(localStorage.getItem('historicoEstoque')) || [];
+
+        function salvar() {
+            localStorage.setItem('meuEstoque', JSON.stringify(estoque));
+            localStorage.setItem('historicoEstoque', JSON.stringify(historico));
+            renderizar();
+        }
+
+        // --- FUNÇÃO DA NOVA BARRA DE BUSCA ---
+        function filtrarEstoque() {
+            const termo = document.getElementById('inputBusca').value.toLowerCase();
+            const itensNaLista = document.querySelectorAll('#estoqueList li');
+            
+            itensNaLista.forEach(li => {
+                const nome = li.querySelector('.item-name').innerText.toLowerCase();
+                if (nome.includes(termo)) {
+                    li.style.display = 'flex';
+                } else {
+                    li.style.display = 'none';
+                }
+            });
+        }
+
+        // --- FUNÇÃO PARA REGISTRAR QUEM PEGOU ---
+        function registrarRetirada() {
+            const separador = document.getElementById('selectSeparador').value;
+            const itemId = parseInt(document.getElementById('selectItem').value);
+            const qtd = parseInt(document.getElementById('qtdRetirada').value);
+
+            if (!separador) return alert('Selecione QUEM está pegando o material.');
+            if (!itemId) return alert('Selecione QUAL modelo está sendo retirado.');
+            if (!qtd || qtd <= 0) return alert('A quantidade deve ser maior que zero.');
+
+            const item = estoque.find(i => i.id === itemId);
+            
+            if (item.qtd < qtd) {
+                return alert(`⚠️ Não há estoque suficiente! Você tentou tirar ${qtd}, mas só temos ${item.qtd} de ${item.nome}.`);
+            }
+
+            // Desconta do estoque
+            item.qtd -= qtd;
+            
+            // Grava no histórico com a data e hora atual
+            const dataAtual = new Date().toLocaleString('pt-BR');
+            historico.unshift({
+                id: Date.now(),
+                data: dataAtual,
+                separador: separador,
+                itemNome: item.nome,
+                qtd: qtd
+            });
+
+            // Limita o histórico a 50 itens para não pesar o app
+            if(historico.length > 50) historico.pop();
+
+            // Reseta o formulário e salva
+            document.getElementById('selectSeparador').value = '';
+            document.getElementById('selectItem').value = '';
+            document.getElementById('qtdRetirada').value = '1';
+            
+            salvar();
+            // Refaz a busca caso o usuário estivesse filtrando algo
+            filtrarEstoque();
+        }
+
+        function cadastrarItem() {
+            const nome = document.getElementById('itemName').value.trim();
+            const qtd = parseInt(document.getElementById('itemQty').value) || 0;
+            if (!nome) return alert('Por favor, digite o nome do modelo!');
+
+            estoque.push({ id: Date.now(), nome, qtd });
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemQty').value = '0';
+            salvar();
+        }
+
+        // Esta função agora serve mais para quando chega material ou ajustes manuais
+        function alterarQtd(id, valor) {
+            const item = estoque.find(i => i.id === id);
+            if (item) {
+                item.qtd += valor;
+                if (item.qtd < 0) item.qtd = 0;
+                salvar();
+                filtrarEstoque();
+            }
+        }
+
+        function excluirItem(id) {
+            if(confirm('Tem certeza que deseja excluir este modelo do sistema?')) {
+                estoque = estoque.filter(i => i.id !== id);
+                salvar();
+            }
+        }
+
+        function renderizar() {
+            // 1. Atualiza a lista principal de estoque
+            const lista = document.getElementById('estoqueList');
+            lista.innerHTML = '';
+
+            // 2. Atualiza a lista de opções (Dropdown) no registro de retirada
+            const selectItem = document.getElementById('selectItem');
+            selectItem.innerHTML = '<option value="">2. Qual modelo?</option>';
+
+            estoque.forEach(item => {
+                // Monta o item na lista visual
+                const li = document.createElement('li');
+                if (item.qtd <= 5) li.className = 'low-stock'; 
+
+                li.innerHTML = `
+                    <div class="item-info">
+                        <span class="item-name">${item.nome}</span>
+                    </div>
+                    <div class="item-actions">
+                        <button class="btn-remove" onclick="alterarQtd(${item.id}, -1)" title="Diminuir">-</button>
+                        <span class="quantity">${item.qtd}</span>
+                        <button class="btn-add" onclick="alterarQtd(${item.id}, 1)" title="Aumentar">+</button>
+                        <button class="btn-delete" onclick="excluirItem(${item.id})" title="Excluir modelo">🗑️</button>
+                    </div>
+                `;
+                lista.appendChild(li);
+
+                // Adiciona o item no dropdown de retiradas
+                selectItem.innerHTML += `<option value="${item.id}">${item.nome} (Saldo: ${item.qtd})</option>`;
+            });
+
+            // 3. Atualiza a lista de histórico
+            const listaHistorico = document.getElementById('historicoList');
+            listaHistorico.innerHTML = '';
+            
+            if (historico.length === 0) {
+                listaHistorico.innerHTML = '<li class="historico-item">Nenhuma retirada registrada ainda.</li>';
+            } else {
+                historico.forEach(reg => {
+                    const liHist = document.createElement('li');
+                    liHist.className = 'historico-item';
+                    liHist.innerHTML = `
+                        <div><strong>${reg.separador}</strong> retirou <strong>${reg.qtd}x ${reg.itemNome}</strong></div>
+                        <span class="historico-data">${reg.data}</span>
+                    `;
+                    listaHistorico.appendChild(liHist);
+                });
+            }
+        }
+
+        // Roda ao abrir a página
+        renderizar();
+    </script>
+</body>
+</html>
