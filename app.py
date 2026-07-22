@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Controle de Estoque - Caixa Tomada", page_icon="📦", layout="centered")
+st.set_page_config(page_title="Torres - ESTOQUE", page_icon="📦", layout="centered")
 
 # --- DESIGN PREMIUM E MODO ESCURO ---
 st.markdown("""
@@ -24,7 +24,7 @@ st.markdown("""
     }
     .stButton>button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(243, 128, 32, 0.3); /* Sombra laranja da sua logo */
+        box-shadow: 0 4px 12px rgba(243, 128, 32, 0.3);
     }
     
     /* Título principal centralizado */
@@ -33,7 +33,7 @@ st.markdown("""
         font-weight: 800;
         padding-bottom: 1rem;
         margin-bottom: 2rem;
-        border-bottom: 2px solid #333333; /* Linha divisória adaptada para o tema escuro */
+        border-bottom: 2px solid #333333;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -130,12 +130,11 @@ df_estoque, df_historico = carregar_dados()
 separadores = ["Fran", "Henrique", "Leonardo", "Patrick"]
 
 # ==========================================
-# LOGO VETORIZADA DIRETO NO CÓDIGO (Fundo transparente)
+# LOGO VETORIZADA DIRETO NO CÓDIGO
 # ==========================================
 logo_svg = """
 <div style="display: flex; justify-content: center; margin-bottom: 30px;">
     <svg width="100%" viewBox="0 0 400 350" xmlns="http://www.w3.org/2000/svg">
-        <!-- O fundo agora é transparente para assumir a cor preta do app -->
         <rect width="400" height="350" fill="transparent" rx="12"/>
         <path d="M 320 180 L 320 50 L 50 50 L 50 300 L 320 300 L 320 250" fill="none" stroke="#ffffff" stroke-width="12" />
         <text x="75" y="150" fill="#ffffff" font-family="Arial, sans-serif" font-weight="900" font-size="70" letter-spacing="2">CAIXA</text>
@@ -163,10 +162,10 @@ if perfil == "⚙️ Controle (Apenas Fran)":
 # ==========================================
 # TELA PRINCIPAL
 # ==========================================
-st.markdown("<h1 class='main-title'>📦 Gestão de Estoque</h1>", unsafe_allow_html=True)
+st.markdown("<h1 class='main-title'>📦 Torres - ESTOQUE</h1>", unsafe_allow_html=True)
 
 if not mostrar_admin:
-    st.info("👋 **Bem-vindo(a) à central de estoque Caixa Tomada.** Você está no modo visualização. Solicite as retiradas de material diretamente à Fran.")
+    st.info("👋 **Bem-vindo(a) à central de estoque Torres.** Você está no modo visualização. Solicite as retiradas de material diretamente à Fran.")
     
     busca = st.text_input("🔍 Buscar modelo ou cor (Ex: TR03 Branco)...", key="busca_equipe")
     exibir_estoque_premium(df_estoque, busca)
