@@ -54,12 +54,68 @@ def salvar_estoque(df):
 def salvar_historico(df):
     df.to_csv(ARQUIVO_HISTORICO, index=False)
 
-# Função para pintar de vermelho linhas com estoque baixo
-def destacar_estoque_baixo(row):
-    if row['Quantidade'] <= 5:
-        return ['background-color: rgba(239, 68, 68, 0.3)'] * len(row)
-    return [''] * len(row)
+# ==========================================
+# FUNÇÃO PREMIUM PARA EXIBIR ESTOQUE
+# ==========================================
+def exibir_estoque_premium(df_base, termo_busca=""):
+    df_view = df_base.copy()
+    
+    # Filtra se houver busca
+    if termo_busca:
+        df_view = df_view[df_view["Modelo"].str.contains(termo_busca, case=False)]
+        
+    if df_view.empty:
+        st.warning("Nenhum modelo encontrado com este nome ou cor.")
+        return
 
+    # Separa o Nome da Cor para ficar organizado
+    def extrair_linha(nome):
+        if " - " in nome:
+            return nome.rsplit(" - ", 1)[0]
+        return nome
+        
+    def extrair_cor(nome):
+        if " - " in nome:
+            return nome.rsplit(" - ", 1)[1]
+        return "-"
+
+    df_view['Linha'] = df_view['Modelo'].apply(extrair_linha)
+    df_view['Cor'] = df_view['Modelo'].apply(extrair_cor)
+    
+    # Ordena alfabeticamente para agrupar as famílias de produtos
+    df_view = df_view.sort_values(by=['Linha', 'Cor'])
+    
+    # Adiciona a coluna de Status
+    df_view['Status'] = df_view['Quantidade'].apply(
+        lambda x: "🔴 Zerado" if x == 0 else ("🟡 Baixo" if x <= 5 else "🟢 OK")
+    )
+    
+    # Define um limite para a barra de progresso (para ficar visualmente bonito)
+    max_qtd = max(int(df_base['Quantidade'].max()), 50)
+    
+    # Seleciona as colunas finais
+    df_final = df_view[['Linha', 'Cor', 'Quantidade', 'Status']]
+    
+    # Renderiza a tabela com o visual novo (column_config)
+    st.dataframe(
+        df_final,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "Linha": st.column_config.TextColumn("Modelo", width="medium"),
+            "Cor": st.column_config.TextColumn("Cor", width="small"),
+            "Quantidade": st.column_config.ProgressColumn(
+                "Estoque Físico",
+                help="Quantidade atual disponível",
+                format="%d un",
+                min_value=0,
+                max_value=max_qtd
+            ),
+            "Status": st.column_config.TextColumn("Status", width="small")
+        }
+    )
+
+# Inicializa os dados
 df_estoque, df_historico = carregar_dados()
 separadores = ["Fran", "Henrique", "Leonardo", "Patrick"]
 
@@ -72,7 +128,6 @@ perfil = st.sidebar.radio("Selecione o modo:", ["Apenas Ver (Equipe)", "Controle
 mostrar_admin = False
 
 if perfil == "Controle (Apenas Fran)":
-    # Aqui fica a senha da Fran!
     senha = st.sidebar.text_input("Digite a senha da Fran:", type="password")
     if senha == "fran123":
         mostrar_admin = True
@@ -86,20 +141,18 @@ st.title("📦 Meu Estoque")
 
 if not mostrar_admin:
     # ---------------------------------------------------------
-    # MODO VISUALIZADOR (Para Henrique, Leonardo, Patrick)
+    # MODO VISUALIZADOR (Equipe)
     # ---------------------------------------------------------
-    st.info("👀 **Modo Visualização:** Você pode consultar os saldos abaixo. **Para retirar material, solicite à Fran.**")
+    st.info("👀 **Modo Visualização:** Consulte os saldos abaixo. **Para retirar material, solicite à Fran.**")
     
-    busca = st.text_input("🔍 Pesquisar modelo ou cor...", placeholder="Ex: TR03 Preto...")
-    df_view = df_estoque.copy()
-    if busca:
-        df_view = df_view[df_view["Modelo"].str.contains(busca, case=False)]
+    busca = st.text_input("🔍 Pesquisar modelo ou cor...", placeholder="Ex: TR03 Preto...", key="busca_equipe")
     
-    st.dataframe(df_view.style.apply(destacar_estoque_baixo, axis=1), use_container_width=True, hide_index=True)
+    # Chama a função visual Premium
+    exibir_estoque_premium(df_estoque, busca)
 
 else:
     # ---------------------------------------------------------
-    # MODO ADMINISTRADOR (Acesso exclusivo da Fran)
+    # MODO ADMINISTRADOR (Fran)
     # ---------------------------------------------------------
     st.sidebar.success("✅ Acesso Liberado para Fran")
     
@@ -150,11 +203,8 @@ else:
         st.header("📋 Estoque Atual")
         busca = st.text_input("🔍 Pesquisar modelo ou cor...", placeholder="Ex: TR03 Preto...", key="busca_admin")
 
-        df_view = df_estoque.copy()
-        if busca:
-            df_view = df_view[df_view["Modelo"].str.contains(busca, case=False)]
-
-        st.dataframe(df_view.style.apply(destacar_estoque_baixo, axis=1), use_container_width=True, hide_index=True)
+        # Chama a função visual Premium
+        exibir_estoque_premium(df_estoque, busca)
 
         st.divider()
 
