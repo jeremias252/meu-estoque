@@ -43,16 +43,27 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# URL DA PLANILHA GOOGLE INSERIDA AQUI
+# URL DA PLANILHA GOOGLE
 URL_PLANILHA = "https://docs.google.com/spreadsheets/d/10h0iFxX_FEvQljPyLHD6IdeOaSYsnvHfkYzK7PcHe1U/edit?usp=drivesdk"
 
 # --- CONEXÃO COM GOOGLE SHEETS ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def carregar_dados():
+    # VERIFICA E CARREGA O ESTOQUE
+    precisa_criar_estoque = False
     try:
         df_estoque = conn.read(spreadsheet=URL_PLANILHA, worksheet="Estoque")
+        if "Quantidade" not in df_estoque.columns or "Modelo" not in df_estoque.columns:
+            precisa_criar_estoque = True
+        else:
+            # Limpa linhas vazias e garante que quantidade seja número
+            df_estoque = df_estoque.dropna(subset=["Modelo"])
+            df_estoque["Quantidade"] = pd.to_numeric(df_estoque["Quantidade"], errors="coerce").fillna(0).astype(int)
     except:
+        precisa_criar_estoque = True
+
+    if precisa_criar_estoque:
         modelos_base = [
             "TR03", "TR03W", "TR03A", "TR03AW", "TR02A", "TR02AW",
             "TR03AW COM DUO", "TR03A COM DUO", "TR03A TOPO EM PEDRA 2,5 mm",
@@ -65,9 +76,18 @@ def carregar_dados():
         df_estoque = pd.DataFrame({"Modelo": itens, "Quantidade": 0})
         conn.update(spreadsheet=URL_PLANILHA, worksheet="Estoque", data=df_estoque)
 
+    # VERIFICA E CARREGA O HISTÓRICO
+    precisa_criar_hist = False
     try:
         df_historico = conn.read(spreadsheet=URL_PLANILHA, worksheet="Historico")
+        if "Ação" not in df_historico.columns or "Separador" not in df_historico.columns:
+            precisa_criar_hist = True
+        else:
+            df_historico = df_historico.dropna(subset=["ID"])
     except:
+        precisa_criar_hist = True
+        
+    if precisa_criar_hist:
         df_historico = pd.DataFrame(columns=["ID", "Data", "Ação", "Separador", "Modelo", "Quantidade"])
         conn.update(spreadsheet=URL_PLANILHA, worksheet="Historico", data=df_historico)
 
