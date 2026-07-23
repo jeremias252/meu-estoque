@@ -50,14 +50,13 @@ URL_PLANILHA = "https://docs.google.com/spreadsheets/d/10h0iFxX_FEvQljPyLHD6IdeO
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def carregar_dados():
-    # VERIFICA E CARREGA O ESTOQUE
+    # ttl=600 FAZ O APP LER DA MEMÓRIA RÁPIDA (CACHE POR 10 MINUTOS) E NÃO DO GOOGLE
     precisa_criar_estoque = False
     try:
-        df_estoque = conn.read(spreadsheet=URL_PLANILHA, worksheet="Estoque")
+        df_estoque = conn.read(spreadsheet=URL_PLANILHA, worksheet="Estoque", ttl=600).copy()
         if "Quantidade" not in df_estoque.columns or "Modelo" not in df_estoque.columns:
             precisa_criar_estoque = True
         else:
-            # Limpa linhas vazias e garante que quantidade seja número
             df_estoque = df_estoque.dropna(subset=["Modelo"])
             df_estoque["Quantidade"] = pd.to_numeric(df_estoque["Quantidade"], errors="coerce").fillna(0).astype(int)
     except:
@@ -76,10 +75,9 @@ def carregar_dados():
         df_estoque = pd.DataFrame({"Modelo": itens, "Quantidade": 0})
         conn.update(spreadsheet=URL_PLANILHA, worksheet="Estoque", data=df_estoque)
 
-    # VERIFICA E CARREGA O HISTÓRICO
     precisa_criar_hist = False
     try:
-        df_historico = conn.read(spreadsheet=URL_PLANILHA, worksheet="Historico")
+        df_historico = conn.read(spreadsheet=URL_PLANILHA, worksheet="Historico", ttl=600).copy()
         if "Ação" not in df_historico.columns or "Separador" not in df_historico.columns:
             precisa_criar_hist = True
         else:
@@ -148,12 +146,13 @@ def exibir_estoque_premium(df_base, termo_busca=""):
                 """
                 cols[i].markdown(card_html, unsafe_allow_html=True)
 
+# CARREGA OS DADOS
 df_estoque, df_historico = carregar_dados()
 separadores = ["Fran", "Henrique", "Leonardo", "Patrick"]
 
-# --- LOGO SVG ---
+# --- LOGO SVG E BOTÃO DE ATUALIZAR ---
 logo_svg = """
-<div style="display: flex; justify-content: center; margin-bottom: 30px;">
+<div style="display: flex; justify-content: center; margin-bottom: 20px;">
     <svg width="100%" viewBox="0 0 400 350" xmlns="http://www.w3.org/2000/svg">
         <rect width="400" height="350" fill="transparent" rx="12"/>
         <path d="M 320 180 L 320 50 L 50 50 L 50 300 L 320 300 L 320 250" fill="none" stroke="#ffffff" stroke-width="12" />
@@ -166,6 +165,11 @@ logo_svg = """
 </div>
 """
 st.sidebar.markdown(logo_svg, unsafe_allow_html=True)
+
+if st.sidebar.button("🔄 Atualizar Planilha Agora", use_container_width=True):
+    st.cache_data.clear()
+    st.rerun()
+st.sidebar.divider()
 
 # --- CONTROLE DE ACESSO ---
 st.sidebar.title("🔐 Acesso Seguro")
@@ -187,7 +191,6 @@ elif perfil == "👑 Coordenador":
 # --- TELA PRINCIPAL ---
 st.markdown("<h1 class='main-title'>📦 Torres - ESTOQUE</h1>", unsafe_allow_html=True)
 
-# ALERTA DE ESTOQUE CRÍTICO
 zerados = df_estoque[df_estoque["Quantidade"] == 0]["Modelo"].tolist()
 if zerados:
     st.markdown(f"<div class='alert-box'>🚨 <b>ATENÇÃO CRÍTICA:</b> Há {len(zerados)} modelos com estoque ZERADO!</div>", unsafe_allow_html=True)
@@ -224,6 +227,7 @@ else:
                     novo = pd.DataFrame([{"ID": str(uuid.uuid4()), "Data": datetime.now().strftime("%Y-%m-%d %H:%M"), "Ação": "Saída", "Separador": sep, "Modelo": modelo, "Quantidade": qtd}])
                     df_historico = pd.concat([novo, df_historico], ignore_index=True)
                     salvar_historico(df_historico)
+                    st.cache_data.clear() # LIMPA A MEMÓRIA PARA LER OS DADOS NOVOS
                     st.success(f"✅ Registrado com sucesso!")
                     st.rerun()
 
@@ -250,6 +254,7 @@ else:
                     novo = pd.DataFrame([{"ID": str(uuid.uuid4()), "Data": datetime.now().strftime("%Y-%m-%d %H:%M"), "Ação": "Entrada", "Separador": quem_fez, "Modelo": modelo_rep, "Quantidade": qtd_rep}])
                     df_historico = pd.concat([novo, df_historico], ignore_index=True)
                     salvar_historico(df_historico)
+                    st.cache_data.clear() # LIMPA A MEMÓRIA PARA LER OS DADOS NOVOS
                     st.success("✅ Entrada Lançada!")
                     st.rerun()
 
