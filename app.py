@@ -43,8 +43,8 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# https://docs.google.com/spreadsheets/d/10h0iFxX_FEvQljPyLHD6IdeOaSYsnvHfkYzK7PcHe1U/edit?usp=drivesdk "Torres - Estoque" DO GOOGLE DRIVE
-URL_PLANILHA = "https://accounts.google.com/v3/signin/challenge/pwd?TL=AE6FvyYfmPARVm6STWRLrPkEU2X27kersI5HDhLH_Wvi1ph2im_-cePSy5Jq3xJ8&authuser=0&cid=2&continue=https%3A%2F%2Fconsole.cloud.google.com%2Fprojectcreate&dsh=S68009180%3A1784748722018275&flowName=GlifWebSignIn&followup=https%3A%2F%2Fconsole.cloud.google.com%2Fprojectcreate&rart=ANgoxcdCzA4yYQlylhbOdmMUA_2r3cCBkz_PlTYoa8-Rt3B0U4ci75u-4kKgf9Ia1cK73MDRIeY_hswaSVdPzVAv-hhdPSghBcqna7tdhcUUoyK_1UizpCI&service=cloudconsole"
+# URL DA PLANILHA GOOGLE INSERIDA AQUI
+URL_PLANILHA = "https://docs.google.com/spreadsheets/d/10h0iFxX_FEvQljPyLHD6IdeOaSYsnvHfkYzK7PcHe1U/edit?usp=drivesdk"
 
 # --- CONEXÃO COM GOOGLE SHEETS ---
 conn = st.connection("gsheets", type=GSheetsConnection)
