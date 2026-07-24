@@ -43,51 +43,29 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# URL DA PLANILHA GOOGLE
+# URL DA PLANILHA GOOGLE (TORRES)
 URL_PLANILHA = "https://docs.google.com/spreadsheets/d/10h0iFxX_FEvQljPyLHD6IdeOaSYsnvHfkYzK7PcHe1U/edit?usp=drivesdk"
 
 # --- CONEXÃO COM GOOGLE SHEETS ---
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 def carregar_dados():
-    # ttl=600 FAZ O APP LER DA MEMÓRIA RÁPIDA (CACHE POR 10 MINUTOS) E NÃO DO GOOGLE
-    precisa_criar_estoque = False
+    # --- NOVO SISTEMA BLINDADO CONTRA PERDA DE DADOS ---
     try:
         df_estoque = conn.read(spreadsheet=URL_PLANILHA, worksheet="Estoque", ttl=600).copy()
-        if "Quantidade" not in df_estoque.columns or "Modelo" not in df_estoque.columns:
-            precisa_criar_estoque = True
-        else:
-            df_estoque = df_estoque.dropna(subset=["Modelo"])
-            df_estoque["Quantidade"] = pd.to_numeric(df_estoque["Quantidade"], errors="coerce").fillna(0).astype(int)
-    except:
-        precisa_criar_estoque = True
+        df_estoque = df_estoque.dropna(subset=["Modelo"])
+        df_estoque["Quantidade"] = pd.to_numeric(df_estoque["Quantidade"], errors="coerce").fillna(0).astype(int)
+    except Exception as e:
+        # Se a internet falhar ou o Google travar, ele PARA tudo e não apaga nada!
+        st.error("⚠️ Falha de comunicação com o Google Drive. A internet pode ter oscilado. Tente atualizar a página.")
+        st.stop()
 
-    if precisa_criar_estoque:
-        modelos_base = [
-            "TR03", "TR03W", "TR03A", "TR03AW", "TR02A", "TR02AW",
-            "TR03AW COM DUO", "TR03A COM DUO", "TR03A TOPO EM PEDRA 2,5 mm",
-            "TR03A TOPO EM PEDRA 4 mm", "TR03A TOPO EM PEDRA 2,5 mm TOM DEDICADA",
-            "TR03 2TM + 1VER", "TR03 4mm", "TR03A 2 TOM +VM", "TR02AW 1TOM + VM",
-            "TR03AW 2 TOM + VM", "TR02A 4mm²", "TR02AW 4mm"
-        ]
-        cores = ["Branco", "Preto", "Cinza"]
-        itens = [f"{modelo} - {cor}" for modelo in modelos_base for cor in cores]
-        df_estoque = pd.DataFrame({"Modelo": itens, "Quantidade": 0})
-        conn.update(spreadsheet=URL_PLANILHA, worksheet="Estoque", data=df_estoque)
-
-    precisa_criar_hist = False
     try:
         df_historico = conn.read(spreadsheet=URL_PLANILHA, worksheet="Historico", ttl=600).copy()
-        if "Ação" not in df_historico.columns or "Separador" not in df_historico.columns:
-            precisa_criar_hist = True
-        else:
-            df_historico = df_historico.dropna(subset=["ID"])
+        df_historico = df_historico.dropna(subset=["ID"])
     except:
-        precisa_criar_hist = True
-        
-    if precisa_criar_hist:
+        # Se der erro de leitura no histórico, ele cria um vazio em branco só na memória pra não travar a tela
         df_historico = pd.DataFrame(columns=["ID", "Data", "Ação", "Separador", "Modelo", "Quantidade"])
-        conn.update(spreadsheet=URL_PLANILHA, worksheet="Historico", data=df_historico)
 
     return df_estoque, df_historico
 
@@ -148,7 +126,9 @@ def exibir_estoque_premium(df_base, termo_busca=""):
 
 # CARREGA OS DADOS
 df_estoque, df_historico = carregar_dados()
+# === EQUIPE DAS TORRES ===
 separadores = ["Fran", "Henrique", "Leonardo", "Patrick"]
+lista_modelos = sorted(df_estoque["Modelo"].tolist())
 
 # --- LOGO SVG E BOTÃO DE ATUALIZAR ---
 logo_svg = """
@@ -210,7 +190,7 @@ else:
         with st.form("form_saida", clear_on_submit=True):
             col1, col2, col3 = st.columns([2, 3, 1])
             with col1: sep = st.selectbox("1. Colaborador", [""] + separadores)
-            with col2: modelo = st.selectbox("2. Modelo", [""] + sorted(df_estoque["Modelo"].tolist()))
+            with col2: modelo = st.selectbox("2. Modelo", [""] + lista_modelos)
             with col3: qtd = st.number_input("3. Qtd", min_value=1, value=1)
             submit_saida = st.form_submit_button("Confirmar Saída", type="primary", use_container_width=True)
 
@@ -227,7 +207,7 @@ else:
                     novo = pd.DataFrame([{"ID": str(uuid.uuid4()), "Data": datetime.now().strftime("%Y-%m-%d %H:%M"), "Ação": "Saída", "Separador": sep, "Modelo": modelo, "Quantidade": qtd}])
                     df_historico = pd.concat([novo, df_historico], ignore_index=True)
                     salvar_historico(df_historico)
-                    st.cache_data.clear() # LIMPA A MEMÓRIA PARA LER OS DADOS NOVOS
+                    st.cache_data.clear()
                     st.success(f"✅ Registrado com sucesso!")
                     st.rerun()
 
@@ -241,7 +221,7 @@ else:
         with st.form("form_entrada", clear_on_submit=True):
             col1_in, col2_in, col3_in = st.columns([2, 3, 1])
             with col1_in: quem_fez = st.selectbox("1. Quem produziu?", [""] + separadores)
-            with col2_in: modelo_rep = st.selectbox("2. Modelo", [""] + sorted(df_estoque["Modelo"].tolist()))
+            with col2_in: modelo_rep = st.selectbox("2. Modelo", [""] + lista_modelos)
             with col3_in: qtd_rep = st.number_input("3. Qtd", min_value=1, value=1)
             submit_entrada = st.form_submit_button("Lançar Entrada")
             
@@ -254,7 +234,7 @@ else:
                     novo = pd.DataFrame([{"ID": str(uuid.uuid4()), "Data": datetime.now().strftime("%Y-%m-%d %H:%M"), "Ação": "Entrada", "Separador": quem_fez, "Modelo": modelo_rep, "Quantidade": qtd_rep}])
                     df_historico = pd.concat([novo, df_historico], ignore_index=True)
                     salvar_historico(df_historico)
-                    st.cache_data.clear() # LIMPA A MEMÓRIA PARA LER OS DADOS NOVOS
+                    st.cache_data.clear()
                     st.success("✅ Entrada Lançada!")
                     st.rerun()
 
